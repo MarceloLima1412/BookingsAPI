@@ -1,0 +1,68 @@
+version: "3"
+services:
+  app:
+    build:
+      context: .
+      dockerfile: .docker/app/Dockerfile
+    image: xlr8rm/laravel-dev
+    container_name: xlr8_app
+    tty: true
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      XDEBUG_CONFIG: "client_host=host.docker.internal idekey=\"PHPSTORM\""
+      PHP_IDE_CONFIG: "serverName=docker-app"
+    volumes:
+      - ./:/var/www
+      - ./.docker/app/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./.docker/app/docker-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    networks:
+      - xlr8rm-network
+    env_file:
+    - .env
+
+  webserver:
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+    image: xlr8rm/nginx
+    container_name: xlr8_webserver
+    restart: unless-stopped
+    ports:
+      - "8084:80"
+    volumes:
+      - ./:/var/www
+      - ./.docker/nginx/conf.d/:/etc/nginx/conf.d/
+    depends_on:
+      - app
+    networks:
+      - xlr8rm-network
+    env_file:
+    - .env
+
+  db:
+    image: mysql:5.7
+    container_name: xlr8_db
+    command: ['mysqld','--character-set-server=utf8', '--collation-server=utf8_unicode_ci']
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - xlr8rm_dbdata:/var/lib/mysql
+    ports:
+      - "3304:3306"
+    networks:
+      - xlr8rm-network
+    env_file:
+    - .env
+
+volumes:
+  xlr8rm_dbdata:
+    driver: local
+
+networks:
+  xlr8rm-network:
+    name: xlr8rm.network
+    driver: bridge
